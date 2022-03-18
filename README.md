@@ -21,4 +21,6 @@ The run is performed in two modes:
 
 ## Composing correctness
 
-In progress
+Composing runs in two modes: single-threaded and multi-threaded.
+The running time and metric value on the validation sample are measured. 
+
