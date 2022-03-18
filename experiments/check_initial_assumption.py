@@ -1,4 +1,4 @@
-from fedot_check.check import InitialAssumptionsChecker
+from fedot_check.init_check import InitialAssumptionsChecker
 from fedot_check.visualization import display_initial_assumptions_comparison
 
 
