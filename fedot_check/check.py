@@ -8,18 +8,11 @@ from fedot.core.data.data_split import train_test_data_setup
 from fedot.core.pipelines.node import PrimaryNode, SecondaryNode
 from fedot.core.pipelines.pipeline import Pipeline
 from fedot.core.validation.split import tabular_cv_generator
-from sklearn.metrics import f1_score, mean_absolute_error
+from sklearn.metrics import f1_score, mean_absolute_error, roc_auc_score
 
-from fedot_check.data import parse_dataframe
+from fedot_check.constants import OUTPUT_MODE_BY_TASK, PATH_BY_TASK, FILE_BY_TASK, ITERATIONS_FOR_TUNING
+from fedot_check.data import parse_dataframe, load_csv_dataframe
 from fedot_check.paths import classification_data_path, regression_data_path
-
-
-def initial_pipeline_with_desired_root(root_model: str):
-    node_encoding = PrimaryNode('one_hot_encoding')
-    node_scaling = SecondaryNode('scaling', nodes_from=[node_encoding])
-    node_final = SecondaryNode(root_model, nodes_from=[node_scaling])
-    pipeline = Pipeline(node_final)
-    return pipeline
 
 
 class InitialAssumptionsChecker:
@@ -40,7 +33,7 @@ class InitialAssumptionsChecker:
         self.regression_files = os.listdir(regression_data_path())
         self.regression_files.sort()
 
-    def simple_test(self):
+    def simple_assumption_validation(self):
         """ Launch test without tuning for classification and regression datasets """
         simple_validation(task_name='classification', files=self.classification_files,
                           repeats=self.simple_repeats, base_model=self.classification_base,
@@ -48,25 +41,25 @@ class InitialAssumptionsChecker:
 
         simple_validation(task_name='regression', files=self.regression_files,
                           repeats=self.simple_repeats, base_model=self.regression_base,
-                          advanced_model=self.regression_base)
+                          advanced_model=self.regression_model)
 
-    def advanced_test(self, tuning_iterations: int):
+    def advanced_assumption_validation(self, tuning_iterations: int):
         """ Launch test with tuning each initial assumption """
-        for dataset in self.classification_files:
-            dataset_name = dataset.split('.csv')[0]
-            print(f'Process dataset {dataset}')
+        advanced_validation(task_name='classification', files=self.classification_files,
+                            repeats=self.tuning_repeats, base_model=self.classification_base,
+                            advanced_model=self.classification_model)
 
-            for i in range(self.simple_repeats):
-                # Load file
-                df = pd.read_csv(os.path.join(classification_data_path(), dataset))
-                input_data = parse_dataframe(dataset_name, df)
+        advanced_validation(task_name='regression', files=self.regression_files,
+                            repeats=self.tuning_repeats, base_model=self.regression_base,
+                            advanced_model=self.regression_model)
 
-                # Cross-validation
-                metrics_for_folds = []
-                time_for_folds = []
-                for train_data, test_data in tabular_cv_generator(input_data, folds=4):
-                    # Generate pipelines
-                    pass
+
+def initial_pipeline_with_desired_root(root_model: str):
+    node_encoding = PrimaryNode('one_hot_encoding')
+    node_scaling = SecondaryNode('scaling', nodes_from=[node_encoding])
+    node_final = SecondaryNode(root_model, nodes_from=[node_scaling])
+    pipeline = Pipeline(node_final)
+    return pipeline
 
 
 def calculate_metric(task_name, test_target, forecasted_values):
@@ -74,23 +67,33 @@ def calculate_metric(task_name, test_target, forecasted_values):
         metric = f1_score(test_target, forecasted_values, average='weighted')
         metric_name = 'F1 metric test score'
     else:
-        metric = mean_absolute_error(test_target, forecasted_values)
-        metric_name = 'MAE metric test score'
+        metric = smape_metric(test_target, forecasted_values)
+        metric_name = 'SMAPE metric test score'
 
     return metric, metric_name
 
 
-def simple_validation(task_name: str, files: list, repeats: int, base_model: str, advanced_model: str):
-    """ Launch simplified """
-    path_by_task = {'classification': classification_data_path(),
-                    'regression': regression_data_path()}
-    file_by_task = {'classification': 'classification_simple_report.csv',
-                    'regression': 'regression_simple_report.csv'}
-    output_mode_by_task = {'classification': 'labels',
-                           'regression': 'default'}
+def smape_metric(y_true: np.array, y_pred: np.array) -> float:
+    """ Symmetric mean absolute percentage error """
 
-    output_mode = output_mode_by_task.get(task_name)
-    path_to_files = path_by_task.get(task_name)
+    numerator = 2 * np.abs(y_true - y_pred)
+    denominator = np.abs(y_true) + np.abs(y_pred)
+    result = numerator / denominator
+    result[np.isnan(result)] = 0.0
+    return float(np.mean(100 * result))
+
+
+def simple_validation(task_name: str, files: list, repeats: int, base_model: str, advanced_model: str):
+    """ Launch simplified validation. Fit initial pipelines and compare fit time and metrics
+
+    :param task_name: name of task
+    :param files: names of csv files
+    :param repeats: number of launches
+    :param base_model: name of baseline model for root node
+    :param advanced_model: name of new model for root node
+    """
+    output_mode = OUTPUT_MODE_BY_TASK.get(task_name)
+    path_to_files = PATH_BY_TASK.get(task_name)
 
     results = []
     for dataset in files:
@@ -98,8 +101,7 @@ def simple_validation(task_name: str, files: list, repeats: int, base_model: str
         print(f'Process dataset {dataset}')
 
         for i in range(repeats):
-            # Load file
-            df = pd.read_csv(os.path.join(path_to_files, dataset))
+            df = load_csv_dataframe(path_to_files, dataset)
             input_data = parse_dataframe(dataset_name, df)
 
             for model_name in [base_model, advanced_model]:
@@ -121,4 +123,72 @@ def simple_validation(task_name: str, files: list, repeats: int, base_model: str
 
     report = pd.DataFrame(results, columns=['Dataset', 'Launch id', metric_name,
                                             'Fit minutes', 'Model name'])
-    report.to_csv(file_by_task.get(task_name), index=False)
+    report.to_csv(FILE_BY_TASK.get(task_name), index=False)
+
+
+def advanced_validation(task_name: str, files: list, repeats: int, base_model: str, advanced_model: str):
+    """
+    Validate initial assumption with tuning (so hyperparameters space investigated)
+
+    :param task_name: name of task to solve
+    :param files: names of csv files
+    :param repeats: number of launches
+    :param base_model: name of baseline model for root node
+    :param advanced_model: name of new model for root node
+    """
+    output_mode = OUTPUT_MODE_BY_TASK.get(task_name)
+    path_to_files = PATH_BY_TASK.get(task_name)
+
+    results = []
+    for dataset in files:
+        dataset_name = dataset.split('.csv')[0]
+        print(f'Process dataset {dataset}')
+
+        for i in range(repeats):
+            # Load file
+            df = load_csv_dataframe(path_to_files, dataset)
+            input_data = parse_dataframe(dataset_name, df)
+
+            for model_name in [base_model, advanced_model]:
+                pipeline = initial_pipeline_with_desired_root(model_name)
+
+                # Cross-validation
+                metrics_for_folds = []
+                time_for_folds = []
+                for train_data, test_data in tabular_cv_generator(input_data, folds=4):
+                    starting_time = datetime.datetime.now()
+                    if task_name == 'classification':
+                        pipeline = pipeline.fine_tune_all_nodes(input_data=train_data,
+                                                                loss_function=roc_auc_score,
+                                                                loss_params={'multi_class': 'ovr',
+                                                                             'average': 'weighted'},
+                                                                iterations=ITERATIONS_FOR_TUNING,
+                                                                timeout=25)
+                    else:
+                        # Tuning for regression
+                        pipeline = pipeline.fine_tune_all_nodes(input_data=train_data,
+                                                                loss_function=mean_absolute_error,
+                                                                iterations=ITERATIONS_FOR_TUNING,
+                                                                timeout=25)
+                    prediction = pipeline.predict(test_data, output_mode=output_mode)
+                    forecasted_values = np.array(prediction.predict)
+
+                    spend_time = datetime.datetime.now() - starting_time
+                    fit_minutes = spend_time.total_seconds() / 60
+
+                    metric, metric_name = calculate_metric(task_name, test_data.target, forecasted_values)
+                    metrics_for_folds.append(metric)
+                    time_for_folds.append(fit_minutes)
+                # Calculate mean values
+                metrics_for_folds = np.array(metrics_for_folds)
+                time_for_folds = np.array(time_for_folds)
+
+                mean_metric = float(np.mean(metrics_for_folds))
+                mean_fit_time = float(np.mean(time_for_folds))
+
+                results.append([dataset_name, i, mean_metric, mean_fit_time, model_name])
+                print(f'Launch {i}. Model {model_name}. Fit time in minutes {mean_fit_time}')
+
+    report = pd.DataFrame(results, columns=['Dataset', 'Launch id', metric_name,
+                                            'Fit minutes', 'Model name'])
+    report.to_csv(FILE_BY_TASK.get(task_name), index=False)

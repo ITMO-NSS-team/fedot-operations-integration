@@ -1,4 +1,4 @@
-import datetime
+import os
 
 import pandas as pd
 import numpy as np
@@ -9,6 +9,16 @@ from sklearn.metrics import f1_score, roc_auc_score
 from sklearn.model_selection import train_test_split
 
 CLASSIFICATIONS_TABLES = ['volkert', 'cnae-9', 'vehicle', 'Amazon_employee_access']
+
+
+def load_csv_dataframe(path_to_files: str, dataset: str):
+    # Load file
+    if dataset == 'delta_ailerons.csv':
+        separator = ' '
+    else:
+        separator = ','
+    df = pd.read_csv(os.path.join(path_to_files, dataset), sep=separator)
+    return df
 
 
 def parse_dataframe(dataset_name: str, df: pd.DataFrame):
@@ -33,6 +43,23 @@ def parse_dataframe(dataset_name: str, df: pd.DataFrame):
         features_cols = np.array(df.columns[:-1])
         features = np.array(df[features_cols])
         target = np.array(df['Class'])
+    elif dataset_name == 'used_car':
+        column_names = list(df.columns)
+        column_names.remove('price')
+        features = np.array(df[column_names])
+        target = np.array(df['price'])
+    elif dataset_name == 'pol':
+        all_cols = list(df.columns)
+        features = np.array(df[all_cols[:-1]])
+        target = np.array(df[all_cols[-1]])
+    elif dataset_name == 'delta_ailerons':
+        all_cols = list(df.columns)
+        features = np.array(df[all_cols[:-1]])
+        target = np.array(df[all_cols[-1]])
+    elif dataset_name == 'cal_housing':
+        features_cols = np.array(df.columns[:-1])
+        features = np.array(df[features_cols])
+        target = np.array(df['medianHouseValue'])
     else:
         raise ValueError(f'Dataset with name {dataset_name} does not exist')
 
