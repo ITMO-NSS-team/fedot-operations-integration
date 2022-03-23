@@ -2,12 +2,12 @@ from fedot_check.init_check import InitialAssumptionsChecker
 from fedot_check.visualization import display_initial_assumptions_comparison
 
 
-def check_initial_assumption(model_to_check: dict):
+def check_initial_assumption(models_to_check: dict):
     """
     Generates initial assumptions with initial models and with new models in root nodes.
     After that on all datasets it measures running time and metrics on validation sample
     """
-    checker = InitialAssumptionsChecker(model_to_check)
+    checker = InitialAssumptionsChecker(models_to_check)
 
     # Launch validation for model with default hyperparameters
     checker.simple_assumption_validation()
@@ -26,6 +26,6 @@ def plot_graphs():
 
 
 if __name__ == '__main__':
-    check_initial_assumption(model_to_check={'regression': 'lgbmreg',
-                                             'classification': 'lgbm'})
+    check_initial_assumption(models_to_check={'regression': 'lgbmreg',
+                                              'classification': 'lgbm'})
     plot_graphs()
