@@ -24,3 +24,8 @@ def display_initial_assumptions_comparison(path_file: str):
                     data=df, kind="strip", dodge=True,
                     height=4, aspect=.7)
         plt.show()
+
+
+def automl_launch_show(path_file: str):
+    df = pd.read_csv(path_file)
+    # TODO implement facet plot with scatter plots

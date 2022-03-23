@@ -28,7 +28,7 @@ class AutoMLChecker:
     def composing_tuning_validation(self, n_jobs: int = 1):
         """ Launch AutoML algorithm with composing and tuning """
         run_composing_validation(task_name='classification', files=self.classification_files,
-                                 repeats=self.repeats, operation=self.regression_model,
+                                 repeats=self.repeats, operation=self.classification_model,
                                  timeout_minutes=self.timeout_minutes, n_jobs=n_jobs)
 
         run_composing_validation(task_name='regression', files=self.classification_files,
@@ -53,7 +53,8 @@ def run_composing_validation(task_name: str, files: list, repeats: int, operatio
             starting_time = datetime.datetime.now()
             init_pipeline = Pipeline(PrimaryNode(operation))
 
-            composer_params = {'initial_assumption': init_pipeline}
+            composer_params = {'initial_assumption': init_pipeline,
+                               'available_operations': [operation]}
             auto_model = Fedot(problem=task_name, composer_params=composer_params, timeout=timeout_minutes,
                                verbose_level=0, n_jobs=n_jobs)
             auto_model.fit(input_data)
