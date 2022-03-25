@@ -10,7 +10,8 @@ from fedot.core.pipelines.pipeline import Pipeline
 from fedot.core.validation.split import tabular_cv_generator
 from sklearn.metrics import mean_absolute_error, roc_auc_score
 
-from fedot_check.constants import OUTPUT_MODE_BY_TASK, PATH_BY_TASK, FILE_BY_TASK, ITERATIONS_FOR_TUNING
+from fedot_check.constants import OUTPUT_MODE_BY_TASK, PATH_BY_TASK, ITERATIONS_FOR_TUNING, \
+    ADVANCED_FILE_BY_TASK, SIMPLE_FILE_BY_TASK
 from fedot_check.data import parse_dataframe, load_csv_dataframe
 from fedot_check.metrics import calculate_metric
 from fedot_check.paths import classification_data_path, regression_data_path
@@ -103,7 +104,7 @@ def simple_validation(task_name: str, files: list, repeats: int, base_model: str
 
     report = pd.DataFrame(results, columns=['Dataset', 'Launch id', metric_name,
                                             'Fit minutes', 'Model name'])
-    report.to_csv(FILE_BY_TASK.get(task_name), index=False)
+    report.to_csv(SIMPLE_FILE_BY_TASK.get(task_name), index=False)
 
 
 def advanced_validation(task_name: str, files: list, repeats: int, base_model: str, advanced_model: str):
@@ -171,4 +172,4 @@ def advanced_validation(task_name: str, files: list, repeats: int, base_model: s
 
     report = pd.DataFrame(results, columns=['Dataset', 'Launch id', metric_name,
                                             'Fit minutes', 'Model name'])
-    report.to_csv(FILE_BY_TASK.get(task_name), index=False)
+    report.to_csv(ADVANCED_FILE_BY_TASK.get(task_name), index=False)
