@@ -31,7 +31,7 @@ class AutoMLChecker:
                                  repeats=self.repeats, operation=self.classification_model,
                                  timeout_minutes=self.timeout_minutes, n_jobs=n_jobs)
 
-        run_composing_validation(task_name='regression', files=self.classification_files,
+        run_composing_validation(task_name='regression', files=self.regression_files,
                                  repeats=self.repeats, operation=self.regression_model,
                                  timeout_minutes=self.timeout_minutes, n_jobs=n_jobs)
 
