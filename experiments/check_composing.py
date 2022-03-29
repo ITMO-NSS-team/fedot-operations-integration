@@ -1,4 +1,5 @@
 from fedot_check.composing_check import AutoMLChecker
+from fedot_check.visualization import automl_timeouts_comparison
 
 
 def check_composing_perform_correctly(models_to_check):
@@ -15,5 +16,7 @@ def check_composing_perform_correctly(models_to_check):
 
 
 if __name__ == '__main__':
-    check_composing_perform_correctly(models_to_check={'regression': 'lgbmreg',
-                                                       'classification': 'lgbm'})
+    # check_composing_perform_correctly(models_to_check={'regression': 'lgbmreg',
+    #                                                    'classification': 'lgbm'})
+    # All csv files saved in current folder
+    automl_timeouts_comparison('')
